@@ -173,7 +173,7 @@ class DNSServer {
             console.log('RECORD', key, recordEncoded);
 
             if (recordEncoded) {
-                const entry = ipns.unmarshal(Buffer.from(recordEncoded, 'base64'));
+                // const entry = ipns.unmarshal(Buffer.from(recordEncoded, 'base64'));
 
                 debug('Replying ipns record via TXT to', host + ':' + port);
                 answers.push({
@@ -182,12 +182,12 @@ class DNSServer {
                     ttl: this.options.ttl,
                     data: chunkString(recordEncoded, 255)
                 });
-                answers.push({
-                    type: 'TXT',
-                    name: name,
-                    ttl: this.options.ttl,
-                    data: encodeTxt({ dnslink: entry.value.toString() })
-                });
+                // answers.push({
+                //     type: 'TXT',
+                //     name: name,
+                //     ttl: this.options.ttl,
+                //     data: encodeTxt({ dnslink: entry.value.toString() })
+                // });
             }
         }
 
