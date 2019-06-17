@@ -1,0 +1,97 @@
+{
+    "name": "ipns-ns",
+    "version": "0.0.0",
+    "description": "IPNS Nameserver",
+    "repository": "hugomrdias/ipns-ns",
+    "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
+    "license": "MIT",
+    "main": "index.js",
+    "bin": "cli.js",
+    "engines": {
+        "node": ">=4"
+    },
+    "scripts": {
+        "test": "nyc ava",
+        "lint": "eslint --cache *.js src/*.js",
+        "validate": "run-p lint test",
+        "precommit": "yarn validate",
+        "version": "yarn changelog && git add changelog.md",
+        "changelog": "conventional-changelog -p angular -i changelog.md -s -r 0",
+        "cov": "yarn test && nyc report --reporter=html && hs coverage -s -o -c-1",
+        "cov:report": "nyc report --reporter=text-lcov > coverage.lcov && codecov"
+    },
+    "files": [
+        "index.js",
+        "cli.js"
+    ],
+    "keywords": [
+        "cli-app",
+        "cli",
+        ""
+    ],
+    "dependencies": {
+        "@polka/send-type": "^0.5.2",
+        "body-parser": "^1.19.0",
+        "bonjour": "^3.5.0",
+        "cids": "^0.7.1",
+        "cloudflare": "^2.4.1",
+        "cors": "^2.8.5",
+        "debug": "^4.1.1",
+        "dns-packet": "^5.2.1",
+        "dns-socket": "^4.2.0",
+        "dotenv": "^8.0.0",
+        "ipns": "^0.5.2",
+        "keyv": "^3.1.0",
+        "libp2p-record": "^0.6.3",
+        "meow": "^5.0.0",
+        "morgan": "^1.9.1",
+        "multicast-dns": "^7.2.0",
+        "peer-id": "^0.12.2",
+        "polka": "^0.5.2"
+    },
+    "devDependencies": {
+        "@commitlint/cli": "^8.0.0",
+        "@commitlint/config-conventional": "^8.0.0",
+        "ava": "^2.0.0",
+        "codecov": "^3.5.0",
+        "conventional-changelog-cli": "^2.0.21",
+        "eslint": "^4.7.1",
+        "eslint-config-halo": "^2.3.3",
+        "http-serve": "^1.0.1",
+        "husky": "^2.3.0",
+        "lint-staged": "^8.0.3",
+        "np": "^5.0.2",
+        "npm-run-all": "^4.1.1",
+        "nyc": "^14.1.1"
+    },
+    "husky": {
+        "hooks": {
+            "pre-commit": "lint-staged",
+            "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+        }
+    },
+    "lint-staged": {
+        "*.js": [
+            "eslint --fix",
+            "git add"
+        ]
+    },
+    "commitlint": {
+        "extends": [
+            "@commitlint/config-conventional"
+        ]
+    },
+    "eslintConfig": {
+        "extends": "halo/plugins",
+        "parserOptions": {
+            "sourceType": "script"
+        }
+    },
+    "eslintIgnore": [
+        "node_modules",
+        "coverage",
+        "dist",
+        "storybook-static",
+        "typings"
+    ]
+}
