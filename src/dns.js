@@ -10,7 +10,7 @@ const ips = getIps();
 const DEFAULT_OPTIONS = {
     ttl: 120, // ttl needs to be > 0 or mdns assumes a goodbye
     domain: 'dns.ipns.dev',
-    hostname: 'dns.ipns.local',
+    hostname: 'ipns.local',
     port: 5300,
     multicast: true,
     dnsOptions: {}, // https://github.com/mafintosh/dns-socket#var-socket--dnsoptions
@@ -56,20 +56,16 @@ class DNSServer {
         this.mdns.on('query', (query, { port, host }) => {
             const answers = [];
 
-            const all = query.questions.map(q => this.handleQuestionMdns(q, port, host, answers));
+            query.questions.forEach(q => this.handleQuestionMdns(q, port, host, answers));
 
-            Promise.all(all)
-                .then(() => {
-                    if (answers.length > 0) {
-                        return this.mdns.respond(
-                            { answers },
-                            () => debug('response sent for ', answers, query)
-                        );
-                    }
+            if (answers.length > 0) {
+                return this.mdns.respond(
+                    { answers },
+                    () => debug('response sent for ', answers, query)
+                );
+            }
 
-                    return answers;
-                })
-                .catch(err => debug(err));
+            return answers;
         });
     }
 
@@ -221,7 +217,7 @@ class DNSServer {
         }
     }
 
-    async handleQuestionMdns(q, port, host, answers) {
+    handleQuestionMdns(q, port, host, answers) {
         if (q.name === this.options.hostname && (q.type === 'A' || q.type === 'ANY')) {
             for (const ip of ips.ipv4) {
                 answers.push({
@@ -245,8 +241,6 @@ class DNSServer {
                 });
             }
         }
-
-        await this.handleQuestion(q, port, host, answers);
     }
 }
 
