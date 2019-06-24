@@ -110,6 +110,8 @@ async function createLink(key, record) {
     console.log('TCL: createLink -> records', records);
     const match = records.filter(r => r.name.includes(key));
 
+    console.log('TCL: createLink -> match', match);
+
     if (!match.find(r => r.name === `${key}.ipns.dev`)) {
         await cf.dnsRecords.add(zone.id, {
             type: 'CNAME',
