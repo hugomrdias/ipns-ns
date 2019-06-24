@@ -118,7 +118,7 @@ async function createLink(key, record) {
 
     const link = match.find(r => r.name === `_dnslink.${key}.ipns.dev`);
 
-    console.log('dnslink');
+    console.log('dnslink', link);
     if (link) {
         console.log('edit');
         await cf.dnsRecords.edit(
