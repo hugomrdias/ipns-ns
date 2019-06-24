@@ -106,6 +106,8 @@ async function createLink(key, record) {
 
     const zone = result.find(z => z.name === 'ipns.dev');
     const { result: records } = await cf.dnsRecords.browse(zone.id);
+
+    console.log('TCL: createLink -> records', records);
     const match = records.filter(r => r.name.includes(key));
 
     if (!match.find(r => r.name === `${key}.ipns.dev`)) {
