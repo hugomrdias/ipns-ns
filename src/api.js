@@ -99,21 +99,64 @@ function validateKey(key, record) {
         .then(pubkey => validate(pubkey, entry));
 }
 
-async function createAlias(alias, record) {
+async function createAlias(alias, key, record) {
     const entry = ipns.unmarshal(Buffer.from(record, 'base64'));
     const { result: zones } = await cf.zones.browse();
     const zone = zones.find(z => z.name === 'ipns.dev');
     const { result: records } = await cf.dnsRecords.browse(zone.id);
 
-    const match = records.filter(r => r.name.includes(alias));
+    // find control record
+    const match = records.find((r) => {
+        if (r.type === 'TXT' && r.name === 'alias') {
+            return true;
+        }
 
-    if (match) {
-        alias += getRandomInt(999);
+        return false;
+    });
+
+    if (!match) {
+        await cf.dnsRecords.add(zone.id, {
+            type: 'CNAME',
+            name: alias,
+            content: 'cloudflare-ipfs.com'
+        });
+        await cf.dnsRecords.add(zone.id, {
+            type: 'TXT',
+            name: alias,
+            content: key
+        });
+        await cf.dnsRecords.add(zone.id, {
+            type: 'TXT',
+            name: '_dnslink.' + alias,
+            content: 'dnslink=' + entry.value.toString()
+        });
+
+        return `https://${alias}.ipns.dev`;
     }
+
+    if (match.content === key) {
+        await cf.dnsRecords.edit(
+            zone.id,
+            match.id,
+            {
+                type: 'TXT',
+                name: '_dnslink.' + alias,
+                content: 'dnslink=' + entry.value.toString()
+            });
+
+        return `https://${alias}.ipns.dev`;
+    }
+
+    alias += getRandomInt(999);
     await cf.dnsRecords.add(zone.id, {
         type: 'CNAME',
         name: alias,
         content: 'cloudflare-ipfs.com'
+    });
+    await cf.dnsRecords.add(zone.id, {
+        type: 'TXT',
+        name: alias,
+        content: key
     });
     await cf.dnsRecords.add(zone.id, {
         type: 'TXT',
@@ -130,7 +173,6 @@ async function createLink(key, record) {
     const zone = zones.find(z => z.name === 'ipns.dev');
     const { result: records } = await cf.dnsRecords.browse(zone.id);
 
-    console.log('TCL: createLink -> records', records);
     const match = records.filter(r => r.name.includes(key));
 
     console.log('TCL: createLink -> match', match);
