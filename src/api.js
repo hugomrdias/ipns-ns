@@ -6,19 +6,20 @@ const send = require('@polka/send-type');
 const { json, raw } = require('body-parser');
 const morgan = require('morgan');
 const cors = require('cors');
-const Cloudflare = require('cloudflare');
+// const Cloudflare = require('cloudflare');
 const ipns = require('ipns');
 const peerid = require('peer-id');
 const dnsPacket = require('dns-packet');
 const Cid = require('cids');
 const { chunkString, getRandomInt } = require('./utils');
+const cf = require('./cf-client');
 
 const extract = promisify(ipns.extractPublicKey);
 const validate = promisify(ipns.validate);
-const cf = new Cloudflare({
-    email: process.env.CF_EMAIL,
-    key: process.env.CF_KEY
-});
+// const cf = new Cloudflare({
+//     email: process.env.CF_EMAIL,
+//     key: process.env.CF_KEY
+// });
 
 /**
  * Start api
@@ -70,12 +71,14 @@ module.exports = function(options = { port: 3000 }, keyv) {
             try {
                 const { key, record, subdomain, alias } = req.body;
 
-                await validateKey(key, record);
+                const entry = ipns.unmarshal(Buffer.from(record, 'base64'));
+
+                await validateKey(key, entry);
                 await keyv.set(key, record);
                 console.log('SAVE KEY', key);
                 send(res, 201, {
-                    subdomain: subdomain ? await createLink(key, record) : '',
-                    alias: alias ? await createAlias(alias, key, record) : ''
+                    subdomain: subdomain ? await createSubdomain(key, entry) : '',
+                    alias: alias ? await createAlias(alias, key, entry) : ''
                 });
             } catch (err) {
                 console.log('TCL: err', err);
@@ -90,8 +93,7 @@ module.exports = function(options = { port: 3000 }, keyv) {
         });
 };
 
-function validateKey(key, record) {
-    const entry = ipns.unmarshal(Buffer.from(record, 'base64'));
+function validateKey(key, entry) {
     const cid = new Cid(key);
     const p = peerid.createFromBytes(cid.multihash);
 
@@ -99,113 +101,106 @@ function validateKey(key, record) {
         .then(pubkey => validate(pubkey, entry));
 }
 
-async function createAlias(alias, key, record) {
-    const entry = ipns.unmarshal(Buffer.from(record, 'base64'));
-    const { result: zones } = await cf.zones.browse();
-    const zone = zones.find(z => z.name === 'ipns.dev');
-    const { result: records } = await cf.dnsRecords.browse(zone.id);
-
-    // find control record
-    const match = records.find((r) => {
-        if (r.type === 'TXT' && r.name === 'alias') {
-            return true;
-        }
-
-        return false;
+async function createAlias(alias, key, entry) {
+    const match = await cf.records({
+        type: 'TXT',
+        name: `${alias}.ipns.dev`
     });
 
-    if (!match) {
-        await cf.dnsRecords.add(zone.id, {
+    if (match.length === 0) {
+        await cf.addRecord({
             type: 'CNAME',
             name: alias,
             content: 'cloudflare-ipfs.com'
         });
-        await cf.dnsRecords.add(zone.id, {
+        await cf.addRecord({
             type: 'TXT',
-            name: alias,
+            name: alias + '-id',
             content: key
         });
-        await cf.dnsRecords.add(zone.id, {
+        await cf.addRecord({
             type: 'TXT',
-            name: '_dnslink.' + alias,
+            name: alias,
             content: 'dnslink=' + entry.value.toString()
         });
 
         return `https://${alias}.ipns.dev`;
     }
 
-    if (match.content === key) {
-        await cf.dnsRecords.edit(
-            zone.id,
-            match.id,
+    // check if request is valid for this key
+    const [idRecord] = await cf.records({
+        type: 'TXT',
+        name: `${alias}-id.ipns.dev`,
+        content: key
+    });
+
+    if (idRecord) {
+        const [dnslinkRecord] = await cf.records({
+            type: 'TXT',
+            name: `${alias}.ipns.dev`
+        });
+
+        await cf.editRecord(
             {
                 type: 'TXT',
-                name: '_dnslink.' + alias,
+                name: alias,
                 content: 'dnslink=' + entry.value.toString()
-            });
+            },
+            dnslinkRecord.id
+        );
 
         return `https://${alias}.ipns.dev`;
     }
 
     alias += getRandomInt(999);
-    await cf.dnsRecords.add(zone.id, {
+    await cf.addRecord({
         type: 'CNAME',
         name: alias,
         content: 'cloudflare-ipfs.com'
     });
-    await cf.dnsRecords.add(zone.id, {
+    await cf.addRecord({
         type: 'TXT',
-        name: alias,
+        name: alias + '-id',
         content: key
     });
-    await cf.dnsRecords.add(zone.id, {
+    await cf.addRecord({
         type: 'TXT',
-        name: '_dnslink.' + alias,
+        name: alias,
         content: 'dnslink=' + entry.value.toString()
     });
 
     return `https://${alias}.ipns.dev`;
 }
 
-async function createLink(key, record) {
-    const entry = ipns.unmarshal(Buffer.from(record, 'base64'));
-    const { result: zones } = await cf.zones.browse();
-    const zone = zones.find(z => z.name === 'ipns.dev');
-    const { result: records } = await cf.dnsRecords.browse(zone.id);
+async function createSubdomain(key, entry) {
+    const { dnslinkRecord } = await cf.records({
+        type: 'TXT',
+        name: `${key}.ipns.dev`
+    });
 
-    const match = records.filter(r => r.name.includes(key));
-
-    console.log('TCL: createLink -> match', match);
-
-    if (!match.find(r => r.name === `${key}.ipns.dev`)) {
-        await cf.dnsRecords.add(zone.id, {
-            type: 'CNAME',
-            name: key,
-            content: 'cloudflare-ipfs.com'
-        });
-    }
-
-    const link = match.find(r => r.name === `_dnslink.${key}.ipns.dev`);
-
-    console.log('dnslink', link);
-    if (link) {
-        console.log('edit');
-        await cf.dnsRecords.edit(
-            zone.id,
-            link.id,
+    if (dnslinkRecord) {
+        await cf.editRecord(
             {
                 type: 'TXT',
-                name: '_dnslink.' + key,
+                name: key,
                 content: 'dnslink=' + entry.value.toString()
-            });
-    } else {
-        console.log('add');
-        await cf.dnsRecords.add(zone.id, {
-            type: 'TXT',
-            name: '_dnslink.' + key,
-            content: 'dnslink=' + entry.value.toString()
-        });
+            },
+            dnslinkRecord.id
+        );
+
+        return `https://${key}.ipns.dev`;
     }
+
+    await cf.addRecord({
+        type: 'CNAME',
+        name: key,
+        content: 'cloudflare-ipfs.com'
+    });
+    await cf.addRecord({
+        type: 'TXT',
+        name: key,
+        content: 'dnslink=' + entry.value.toString()
+    });
 
     return `https://${key}.ipns.dev`;
 }
