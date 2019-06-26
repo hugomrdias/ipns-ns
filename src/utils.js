@@ -39,8 +39,13 @@ function chunkString(str, length) {
     return str.match(new RegExp('.{1,' + length + '}', 'g'));
 }
 
+function getRandomInt(max) {
+    return Math.floor(Math.random() * Math.floor(max));
+}
+
 module.exports = {
     getIps,
     encodeTxt,
-    chunkString
+    chunkString,
+    getRandomInt
 };
