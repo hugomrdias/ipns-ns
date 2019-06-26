@@ -3,10 +3,9 @@
 const { promisify } = require('util');
 const polka = require('polka');
 const send = require('@polka/send-type');
-const { json, raw } = require('body-parser');
+const { json } = require('body-parser');
 const morgan = require('morgan');
 const cors = require('cors');
-// const Cloudflare = require('cloudflare');
 const ipns = require('ipns');
 const peerid = require('peer-id');
 const dnsPacket = require('dns-packet');
@@ -16,10 +15,6 @@ const cf = require('./cf-client');
 
 const extract = promisify(ipns.extractPublicKey);
 const validate = promisify(ipns.validate);
-// const cf = new Cloudflare({
-//     email: process.env.CF_EMAIL,
-//     key: process.env.CF_KEY
-// });
 
 /**
  * Start api
@@ -173,7 +168,7 @@ async function createAlias(alias, key, entry) {
 }
 
 async function createSubdomain(key, entry) {
-    const { dnslinkRecord } = await cf.records({
+    const [dnslinkRecord] = await cf.records({
         type: 'TXT',
         name: `${key}.ipns.dev`
     });
