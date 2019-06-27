@@ -73,7 +73,7 @@ module.exports = function(options = { port: 3000 }, keyv) {
                 console.log('SAVE KEY', key);
                 send(res, 201, {
                     subdomain: subdomain ? await createSubdomain(key, entry) : '',
-                    alias: alias.length > 0 ? await createAlias(alias, key, entry) : ''
+                    alias: (alias && alias.length > 0) ? await createAlias(alias, key, entry) : ''
                 });
             } catch (err) {
                 console.log('TCL: err', err);
