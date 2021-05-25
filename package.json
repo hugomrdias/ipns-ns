@@ -37,7 +37,7 @@
         "cloudflare": "^2.4.1",
         "cors": "^2.8.5",
         "debug": "^4.1.1",
-        "dns-packet": "^5.2.1",
+        "dns-packet": "^5.2.2",
         "dns-socket": "^4.2.0",
         "dotenv": "^8.0.0",
         "ipns": "^0.5.2",
