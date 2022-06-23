@@ -55,7 +55,7 @@
         "@commitlint/cli": "^8.0.0",
         "@commitlint/config-conventional": "^8.0.0",
         "ava": "^2.0.0",
-        "codecov": "^3.5.0",
+        "codecov": "^3.8.3",
         "conventional-changelog-cli": "^2.0.21",
         "eslint": "^4.7.1",
         "eslint-config-halo": "^2.3.3",
